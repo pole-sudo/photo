@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoVisa — Ảnh Hộ Chiếu & Visa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Hidden processing canvases -->
+<canvas id="work-canvas" style="display:none"></canvas>
+<canvas id="orig-canvas"  style="display:none"></canvas>
+
+<!-- Full-screen lightbox -->
+<div id="result-lightbox" class="lightbox" onclick="closeLightbox()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <canvas id="lightbox-canvas"></canvas>
+    <div class="lightbox-controls">
+      <button class="lbtn" onclick="lightboxZoom(-1)">−</button>
+      <span class="lbtn-lbl" id="lb-lbl">100%</span>
+      <button class="lbtn" onclick="lightboxZoom(1)">+</button>
+      <button class="lbtn" onclick="lightboxZoomFit()">⊡ Khớp</button>
+      <button class="lbtn lbtn-close" onclick="closeLightbox()">✕ Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📷</div>
+    <div class="logo-text">Photo<span>Visa</span></div>
+  </div>
+  <div class="hbadge">AI · ISNet Model</div>
+</header>
+
+<main>
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step active" id="s1"><div class="step-num">1</div><span class="step-label">Tải ảnh</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="s2"><div class="step-num">2</div><span class="step-label">AI tách nền</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="s3"><div class="step-num">3</div><span class="step-label">Chỉnh sửa</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="s4"><div class="step-num">4</div><span class="step-label">Tải xuống</span></div>
+  </div>
+
+  <!-- ── UPLOAD ── -->
+  <div id="upload-section">
+    <div class="hero fi">
+      <h1>Ảnh hộ chiếu & visa<br><em>chuẩn quốc tế</em></h1>
+      <p>AI ISNet tách nền chính xác — xử lý bóng, tóc mịn, nền phức tạp, hoàn toàn trên trình duyệt.</p>
+    </div>
+    <div class="upload-zone fi" id="upload-zone">
+      <span class="upload-icon">🖼️</span>
+      <h3>Kéo thả ảnh vào đây</h3>
+      <p>JPG, PNG, WEBP — tối đa 15MB</p>
+      <button class="btn-pick" onclick="document.getElementById('file-input').click()">Chọn ảnh từ máy tính</button>
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+    <div class="tips fi">
+      <div class="tip"><div class="tip-icon">🤖</div><p>ISNet AI — tách nền chính xác mọi điều kiện ánh sáng</p></div>
+      <div class="tip"><div class="tip-icon">✂️</div><p>Kéo & zoom khung để căn chỉnh vùng cắt thủ công</p></div>
+      <div class="tip"><div class="tip-icon">🔒</div><p>Ảnh không rời thiết bị — 100% trên trình duyệt</p></div>
+    </div>
+  </div>
+
+  <!-- ── LOADING ── -->
+  <div id="loading-section">
+    <div class="ring"></div>
+    <p id="load-title">Đang khởi động...</p>
+    <p id="load-sub">Vui lòng chờ</p>
+    <div class="pbar"><div class="pfill" id="pfill"></div></div>
+    <div class="load-steps">
+      <div class="ls" id="ls1"><div class="lsdot"></div><span>Tải thư viện AI</span></div>
+      <div class="ls" id="ls2"><div class="lsdot"></div><span>Nhận dạng khuôn mặt</span></div>
+      <div class="ls" id="ls3"><div class="lsdot"></div><span>AI ISNet tách nền (lần đầu ~30s)</span></div>
+      <div class="ls" id="ls4"><div class="lsdot"></div><span>Hoàn thiện ảnh</span></div>
+    </div>
+  </div>
+
+  <!-- ── EDITOR ── -->
+  <div id="editor-section">
+
+    <!-- ═══ ROW 1: BEFORE ↔ AFTER PANELS ═══ -->
+    <div class="panels-row fi">
+
+      <!-- LEFT: Ảnh gốc + crop editor -->
+      <div class="panel-card panel-left">
+        <div class="panel-header">
+          <div class="panel-label panel-label-before">
+            <span class="plabel-dot"></span>
+            <span>Ảnh gốc</span>
+          </div>
+          <div class="panel-header-right">
+            <span class="pill">Kéo · Cuộn zoom</span>
+            <div class="crop-btns">
+              <button class="ibtn" onclick="reprocessAI()">🔄 AI</button>
+              <button class="ibtn" onclick="resetCrop()">🎯 Khuôn mặt</button>
+              <button class="ibtn" onclick="fitImage(true)">⊞ Khớp</button>
+            </div>
+          </div>
+        </div>
+        <div class="ai-info" id="ai-info-bar">
+          <span style="font-size:11px;color:#8a9ab5;">Đang tải AI...</span>
+        </div>
+        <canvas id="crop-canvas"></canvas>
+        <div class="zoom-bar">
+          <button class="zbtn" onclick="adjZoom(-0.15)">−</button>
+          <input type="range" id="zoom-range" min="5" max="600" value="100" oninput="zoomSlider(this.value)">
+          <button class="zbtn" onclick="adjZoom(0.15)">+</button>
+          <span id="zoom-lbl">100%</span>
+        </div>
+      </div>
+
+      <!-- DIVIDER -->
+      <div class="panels-divider">
+        <div class="divider-line"></div>
+        <div class="divider-badge">↔</div>
+        <div class="divider-line"></div>
+      </div>
+
+      <!-- RIGHT: Kết quả đã xử lý -->
+      <div class="panel-card panel-right">
+        <div class="panel-header">
+          <div class="panel-label panel-label-after">
+            <span class="plabel-dot"></span>
+            <span>Kết quả</span>
+          </div>
+          <div class="panel-header-right">
+            <div class="sbadge" id="size-badge">35 × 45 mm</div>
+            <div class="zoom-btns-out">
+              <button class="zbtn-out" onclick="zoomResult(-1)">−</button>
+              <span class="zoom-out-lbl" id="zoom-out-lbl">1×</span>
+              <button class="zbtn-out" onclick="zoomResult(1)">+</button>
+              <button class="zbtn-out zbtn-fit" onclick="zoomResultFit()">⊡</button>
+              <button class="zbtn-out" onclick="openLightbox()" title="Toàn màn hình">⛶</button>
+            </div>
+          </div>
+        </div>
+        <!-- Face / AI status bar -->
+        <div class="result-status-bar">
+          <div class="fstatus ok" id="face-bar"><span>✅</span><span id="face-txt">Nhận dạng khuôn mặt</span></div>
+        </div>
+        <div class="prev-wrap" id="prev-wrap">
+          <canvas id="result-canvas" onwheel="wheelZoomResult(event)"></canvas>
+        </div>
+        <div class="zoom-hint">🔍 Cuộn để zoom · Kéo để di chuyển</div>
+      </div>
+
+    </div><!-- panels-row -->
+
+    <!-- ═══ ROW 2: CONTROLS ═══ -->
+    <div class="controls-row fi">
+
+      <!-- FORMAT -->
+      <div class="card ctrl-format">
+        <h4>📐 Kích thước</h4>
+        <div class="fgrid">
+          <button class="fbtn active" data-fmt="passport-vn" onclick="selFmt(this)"><span class="fn">🇻🇳 Hộ chiếu VN</span><span class="fs">35 × 45 mm</span></button>
+          <button class="fbtn" data-fmt="cccd"       onclick="selFmt(this)"><span class="fn">🪪 Thẻ CCCD</span><span class="fs">30 × 40 mm</span></button>
+          <button class="fbtn" data-fmt="us-visa"    onclick="selFmt(this)"><span class="fn">🇺🇸 Visa Mỹ</span><span class="fs">51 × 51 mm</span></button>
+          <button class="fbtn" data-fmt="schengen"   onclick="selFmt(this)"><span class="fn">🇪🇺 Schengen</span><span class="fs">35 × 45 mm</span></button>
+          <button class="fbtn" data-fmt="uk-visa"    onclick="selFmt(this)"><span class="fn">🇬🇧 Visa Anh</span><span class="fs">35 × 45 mm</span></button>
+          <button class="fbtn" data-fmt="japan"      onclick="selFmt(this)"><span class="fn">🇯🇵 Visa Nhật</span><span class="fs">35 × 45 mm</span></button>
+        </div>
+      </div>
+
+      <!-- BACKGROUND -->
+      <div class="card ctrl-bg">
+        <h4>🎨 Màu nền</h4>
+        <div class="swatches">
+          <div class="sw active" style="background:#fff"    data-c="255,255,255" title="Trắng"      onclick="selBg(this)"></div>
+          <div class="sw"        style="background:#c9dff0" data-c="201,223,240" title="Xanh nhạt"  onclick="selBg(this)"></div>
+          <div class="sw"        style="background:#a8cbe8" data-c="168,203,232" title="Xanh dương" onclick="selBg(this)"></div>
+          <div class="sw"        style="background:#e8e8e8" data-c="232,232,232" title="Xám"        onclick="selBg(this)"></div>
+          <div class="sw"        style="background:#f5f0e8" data-c="245,240,232" title="Kem"        onclick="selBg(this)"></div>
+          <div class="sw" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.12)" data-c="26,26,46" title="Đen" onclick="selBg(this)"></div>
+        </div>
+        <div class="srow" style="margin-top:8px">
+          <div class="slbl"><span>Mịn viền</span><span id="fv">3</span></div>
+          <input type="range" id="feather" min="0" max="12" value="3" oninput="document.getElementById('fv').textContent=this.value;schedRender()">
+        </div>
+      </div>
+
+      <!-- ADJUSTMENTS -->
+      <div class="card ctrl-adj">
+        <h4>⚙️ Điều chỉnh ảnh</h4>
+        <div class="srow">
+          <div class="slbl"><span>Độ sáng</span><span id="bv">0</span></div>
+          <input type="range" id="bright" min="-80" max="80" value="0" oninput="document.getElementById('bv').textContent=this.value;schedRender()">
+        </div>
+        <div class="srow">
+          <div class="slbl"><span>Tương phản</span><span id="cv">0</span></div>
+          <input type="range" id="contrast" min="-50" max="50" value="0" oninput="document.getElementById('cv').textContent=this.value;schedRender()">
+        </div>
+        <div class="srow">
+          <div class="slbl"><span>Độ nét (USM)</span><span id="sv">40</span></div>
+          <input type="range" id="sharp" min="0" max="100" value="40" oninput="document.getElementById('sv').textContent=this.value;schedRender()">
+        </div>
+      </div>
+
+      <!-- SKIN -->
+      <div class="card ctrl-skin">
+        <h4>✨ Làm mịn da</h4>
+        <div class="skin-badge">
+          <span class="skin-dot"></span>
+          <span>Frequency Separation — Giữ mắt, tóc, chi tiết</span>
+        </div>
+        <div class="srow" style="margin-top:10px">
+          <div class="slbl"><span>Mức làm mịn</span><span id="skv">0</span></div>
+          <input type="range" id="skin" min="0" max="100" value="0" oninput="document.getElementById('skv').textContent=this.value;schedRender()">
+        </div>
+        <div class="skin-tips">
+          <span class="stip stip-on">✅ Da mặt</span>
+          <span class="stip stip-on">✅ Cổ, tay</span>
+          <span class="stip stip-off">🔒 Mắt</span>
+          <span class="stip stip-off">🔒 Tóc</span>
+          <span class="stip stip-off">🔒 Môi</span>
+        </div>
+      </div>
+
+      <!-- DOWNLOAD -->
+      <div class="card ctrl-dl">
+        <h4>💾 Xuất ảnh</h4>
+        <div class="abtn-group">
+          <button class="btn-pri" id="dl-btn-jpg" onclick="dlPhoto('jpeg')">⬇️ JPG 600 DPI</button>
+          <div class="dl-row">
+            <button class="btn-dl" onclick="dlPhoto('png')">📥 PNG 600 DPI</button>
+            <button class="btn-dl" onclick="dlPhoto300('jpeg')">🖨️ JPG 300 DPI</button>
+          </div>
+          <button class="btn-dl" style="width:100%" onclick="copyClip()">📋 Sao chép</button>
+          <button class="btn-sec" onclick="resetApp()">↩ Ảnh khác</button>
+        </div>
+        <p class="renote" id="renote"></p>
+        <p class="dpi-note">600 DPI — tốt nhất để in &nbsp;·&nbsp; 300 DPI — gửi file</p>
+      </div>
+
+    </div><!-- controls-row -->
+  </div><!-- editor-section -->
+
+</main>
+
+<footer>PhotoVisa · AI ISNet · Toàn bộ xử lý trên trình duyệt · Ảnh không rời thiết bị của bạn</footer>
+<div id="toast"></div>
+<script src="script.js" defer></script>
+</body>
+</html>
